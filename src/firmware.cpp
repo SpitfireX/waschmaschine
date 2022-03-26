@@ -25,66 +25,100 @@ int encoder_delta = 0;
 bool power = false;
 bool redraw = true;
 bool clicked = false;
+bool interaction = false;
 
-void onEncoder(EncoderButton& eb) {
-    encoder_pos = (encoder_pos + eb.increment()) % NUMMIRROR;
-    if (encoder_pos < 0)
-        encoder_pos = NUMMIRROR-1;
-    encoder_delta += eb.increment();
+class LEDAnimation {
+    virtual void updateLEDs() = 0;
+};
+
+struct LEDPreset {
+    const char* title;
+    LEDAnimation* animation;
+};
+
+LEDPreset presets[] = {
+    LEDPreset { "Buntwäsche", nullptr },
+    LEDPreset { "Einfarbig", nullptr },
+    LEDPreset { "Schnellprogramm", nullptr },
+    LEDPreset { "Auswaschen", nullptr },
+    LEDPreset { "Schleudergang", nullptr },
+    LEDPreset { "Nachtlicht", nullptr },
+    LEDPreset { "Farbverlauf", nullptr },
+};
+
+size_t selected_preset;
+const size_t num_presets = sizeof presets / sizeof presets[0];
+
+void on_encoder(EncoderButton& eb) {
+    encoder_pos = eb.position();
+    encoder_delta = eb.increment();
     redraw = true;
+    interaction = true;
 }
 
-void onClick(EncoderButton& eb) {
+void on_click(EncoderButton& eb) {
     if (!power) {
         power = true;
     } else {
         clicked = true;
     }
     redraw = true;
+    interaction = true;
 }
 
-void onLongPress(EncoderButton& eb) {
+void on_long_press(EncoderButton& eb) {
     if (power)
         power = false;
     redraw = true;
+    interaction = true;
 }
 
 void draw() {
-    u8g2.setFont(u8g2_font_inb16_mr);    // set the target font
+    auto p = presets[selected_preset];
+
+    u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
+    u8g2.setFontMode(0);    // enable transparent mode, which is faster
     u8g2.setFontRefHeightExtendedText();
     u8g2.setDrawColor(1);
     u8g2.setFontPosTop();
     u8g2.setFontDirection(0);
 
-    if (power) {
-        u8g2.drawStr( 0, 0, "Power ON");
-    } else {
-        u8g2.drawStr( 0, 0, "Power OFF");
+    u8g2.drawFrame(0, 0, 128, 48);
+
+    u8g2.drawUTF8(2, 2, p.title);
+
+    auto const ypos = 53;
+    auto const xstart = 1;
+
+    for (size_t i = 0; i < num_presets; i++) {
+        
+        if (i == selected_preset) {
+            u8g2.drawBox(xstart + (i*7), ypos, 7, 7);
+        } else {
+            u8g2.drawBox(xstart + (i*7) + 2, ypos+2, 3, 3);
+        }
     }
 
-    u8g2.drawFrame(64, 0, 127, 64);
-    
-    u8g2.setCursor(0, 20);
-    u8g2.print(encoder_delta);
+    // u8g2.setCursor(0, 20);
+    // u8g2.print(encoder_pos);
 }
 
 void setup() {
+    selected_preset = 0;
+
     // Setup Serial Monitor
     Serial.begin(9600);
     Serial.println("Hello World!");
 
-    u8g2.begin();  
-    u8g2.setFont(u8g2_font_inb30_mr);  // set the target font to calculate the pixel width
-    u8g2.setFontMode(0);    // enable transparent mode, which is faster
-    
+    u8g2.begin();
+
     FastLED.addLeds<NEOPIXEL, LED_DATA>(leds, NUM_LEDS);
     leds[78] = CRGB::Green;
     FastLED.show();
     
-    eb1.setEncoderHandler(onEncoder);
-    eb1.setClickHandler(onClick);
-    eb1.setLongPressHandler(onLongPress);
-    eb1.setDebounceInterval(50);
+    eb1.setEncoderHandler(on_encoder);
+    eb1.setClickHandler(on_click);
+    eb1.setLongPressHandler(on_long_press);
 
 //  for (int i = NUMMIRROR-1; i < NUMMIRROR+NUMINNER; i++) {
 //    int color[3];
@@ -95,27 +129,30 @@ void setup() {
 //  }
 }
 
-void critical_gui() {
-    eb1.update();
+void set_leds() {
     memset(leds, 0, sizeof(leds));
     if (power) {
-        leds[encoder_pos] = CRGB::White;
+        leds[encoder_pos % 29] = CRGB::White;
     }
     FastLED.show();
 }
 
 void loop() {
-    // if (redraw) {
-        Serial.println("redraw");
+    if (redraw) {
+        auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
+        selected_preset = (new_preset >= 0) ? new_preset : num_presets-1; 
+        Serial.println(new_preset);
 
         u8g2.firstPage();
         do {
-            critical_gui();
+            eb1.update();
             draw();
         } while ( u8g2.nextPage() );
 
+        set_leds();
+
         redraw = false;
-    // } else {
-    //     eb1.update();
-    // }
+    } else {
+        eb1.update();
+    }
 }

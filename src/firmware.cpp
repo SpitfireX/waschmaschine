@@ -28,26 +28,57 @@ bool clicked = false;
 bool interaction = false;
 
 class LEDAnimation {
-    virtual void updateLEDs() = 0;
+    public:
+        virtual void updateLEDs(CRGB leds[], size_t lednum) = 0;
+        virtual void activate();
 };
 
-struct LEDPreset {
+class LEDSolid: public LEDAnimation {
+    public:
+        LEDSolid(CRGB color) {
+            this->color = color;
+            this->changed = true;
+        }
+
+        void activate() {
+            this->changed = true;
+        }
+
+        void updateLEDs(CRGB leds[], size_t lednum) {
+            if (this->changed) {
+                for (size_t i = 0; i < lednum; i++) {
+                    leds[i] = this->color;
+                }
+                this->changed = false;
+            }
+        }
+    private:
+        CRGB color;
+        bool changed;
+};
+
+LEDSolid solid_white = LEDSolid(CRGB::White);
+LEDSolid solid_orange = LEDSolid(CRGB::Orange);
+LEDSolid solid_aqua = LEDSolid(CRGB::Aquamarine);
+LEDSolid solid_chartreuse = LEDSolid(CRGB::Chartreuse);
+
+struct MenuEntry {
     const char* title;
     LEDAnimation* animation;
 };
 
-LEDPreset presets[] = {
-    LEDPreset { "Buntwäsche", nullptr },
-    LEDPreset { "Einfarbig", nullptr },
-    LEDPreset { "Schnellprogramm", nullptr },
-    LEDPreset { "Auswaschen", nullptr },
-    LEDPreset { "Schleudergang", nullptr },
-    LEDPreset { "Nachtlicht", nullptr },
-    LEDPreset { "Farbverlauf", nullptr },
+MenuEntry main_menu[] = {
+    MenuEntry { "Buntwäsche", &solid_white },
+    MenuEntry { "Einfarbig", &solid_orange },
+    MenuEntry { "Schnellprogramm", &solid_aqua },
+    MenuEntry { "Auswaschen", &solid_white },
+    MenuEntry { "Schleudergang", &solid_orange },
+    MenuEntry { "Nachtlicht", &solid_aqua },
+    MenuEntry { "Farbverlauf", &solid_chartreuse },
 };
 
 size_t selected_preset;
-const size_t num_presets = sizeof presets / sizeof presets[0];
+const size_t num_presets = sizeof main_menu / sizeof main_menu[0];
 
 void on_encoder(EncoderButton& eb) {
     encoder_pos = eb.position();
@@ -74,7 +105,7 @@ void on_long_press(EncoderButton& eb) {
 }
 
 void draw() {
-    auto p = presets[selected_preset];
+    auto p = main_menu[selected_preset];
 
     u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
     u8g2.setFontMode(0);    // enable transparent mode, which is faster
@@ -98,9 +129,6 @@ void draw() {
             u8g2.drawBox(xstart + (i*7) + 2, ypos+2, 3, 3);
         }
     }
-
-    // u8g2.setCursor(0, 20);
-    // u8g2.print(encoder_pos);
 }
 
 void setup() {
@@ -113,46 +141,42 @@ void setup() {
     u8g2.begin();
 
     FastLED.addLeds<NEOPIXEL, LED_DATA>(leds, NUM_LEDS);
+    FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
     leds[78] = CRGB::Green;
     FastLED.show();
     
     eb1.setEncoderHandler(on_encoder);
     eb1.setClickHandler(on_click);
     eb1.setLongPressHandler(on_long_press);
-
-//  for (int i = NUMMIRROR-1; i < NUMMIRROR+NUMINNER; i++) {
-//    int color[3];
-//    hueToRGB((i-NUMMIRROR)*9, color);
-//    pixels.setPixelColor(i, pixels.Color(color[0],color[1],color[2])); // Moderately bright green color.
-//    pixels.show(); // This sends the updated pixel color to the hardware.
-//    delay(delayval); // Delay for a period of time (in milliseconds).
-//  }
 }
 
-void set_leds() {
+void clear_leds() {
     memset(leds, 0, sizeof(leds));
-    if (power) {
-        leds[encoder_pos % 29] = CRGB::White;
-    }
-    FastLED.show();
 }
 
 void loop() {
-    if (redraw) {
-        auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
-        selected_preset = (new_preset >= 0) ? new_preset : num_presets-1; 
-        Serial.println(new_preset);
+    eb1.update();
+    auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
+    new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
+    if (new_preset != selected_preset)
+        main_menu[selected_preset].animation->activate();
+    selected_preset = new_preset;
+    encoder_delta = 0;
 
+    if (power) {
+        main_menu[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
+    } else {
+        clear_leds();
+    }
+    FastLED.show();
+
+    if (redraw) {
         u8g2.firstPage();
         do {
             eb1.update();
             draw();
         } while ( u8g2.nextPage() );
 
-        set_leds();
-
         redraw = false;
-    } else {
-        eb1.update();
     }
 }

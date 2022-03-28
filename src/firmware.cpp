@@ -119,7 +119,7 @@ void draw() {
     u8g2.drawUTF8(2, 2, p.title);
 
     auto const ypos = 53;
-    auto const xstart = 1;
+    auto const xstart = (128-(7*num_presets))/2;
 
     for (size_t i = 0; i < num_presets; i++) {
         

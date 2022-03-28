@@ -19,10 +19,10 @@ U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 EncoderButton eb1(5, 4, 3);
 
-int delayval = 50;
 int encoder_pos = 0;
 int encoder_delta = 0;
 bool power = false;
+bool power_changed = true;
 bool redraw = true;
 bool clicked = false;
 bool interaction = false;
@@ -175,6 +175,7 @@ void on_encoder(EncoderButton& eb) {
 void on_click(EncoderButton& eb) {
     if (!power) {
         power = true;
+        power_changed = true;
     } else {
         clicked = true;
     }
@@ -183,8 +184,10 @@ void on_click(EncoderButton& eb) {
 }
 
 void on_long_press(EncoderButton& eb) {
-    if (power)
+    if (power) {
         power = false;
+        power_changed = true;
+    }
     redraw = true;
     interaction = true;
 }
@@ -220,6 +223,10 @@ void clear_leds() {
     memset(leds, 0, sizeof(leds));
 }
 
+void clear_screen() {
+    u8g2.clearDisplay();
+}
+
 void setup() {
     selected_preset = 0;
 
@@ -243,25 +250,41 @@ void loop() {
     eb1.update();
     auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
     new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
-    if (new_preset != selected_preset)
+    if (new_preset != selected_preset || power_changed)
         main_menu[selected_preset].animation->activate();
     selected_preset = new_preset;
     encoder_delta = 0;
 
     if (power) {
         main_menu[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
+        FastLED.show();
+
+        if (redraw) {
+            u8g2.firstPage();
+            do {
+                eb1.update();
+                draw();
+            } while ( u8g2.nextPage() );
+
+            redraw = false;
+        }
     } else {
         clear_leds();
-    }
-    FastLED.show();
+        FastLED.show();
 
-    if (redraw) {
-        u8g2.firstPage();
-        do {
-            eb1.update();
-            draw();
-        } while ( u8g2.nextPage() );
+        if (redraw) {
+            u8g2.firstPage();
+            do {
+                eb1.update();
+            } while ( u8g2.nextPage() );
 
-        redraw = false;
+            redraw = false;
+        }
     }
+
+    // reset all the flags
+    bool power_changed = false;
+    bool redraw = false;
+    bool clicked = false;
+    bool interaction = false;
 }

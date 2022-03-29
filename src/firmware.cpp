@@ -170,6 +170,7 @@ void on_encoder(EncoderButton& eb) {
     encoder_delta = eb.increment();
     redraw = true;
     interaction = true;
+    analogWrite(9, 127);
 }
 
 void on_click(EncoderButton& eb) {
@@ -181,6 +182,7 @@ void on_click(EncoderButton& eb) {
     }
     redraw = true;
     interaction = true;
+    analogWrite(9, 127);
 }
 
 void on_long_press(EncoderButton& eb) {
@@ -190,6 +192,7 @@ void on_long_press(EncoderButton& eb) {
     }
     redraw = true;
     interaction = true;
+    analogWrite(9, 127);
 }
 
 void draw() {
@@ -238,6 +241,7 @@ void setup() {
 
     FastLED.addLeds<NEOPIXEL, LED_DATA>(leds, NUM_LEDS);
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
+    FastLED.setCorrection(CRGB(255, 200, 130));
     leds[78] = CRGB::Green;
     FastLED.show();
     
@@ -248,6 +252,7 @@ void setup() {
 
 void loop() {
     eb1.update();
+
     auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
     new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
     if (new_preset != selected_preset || power_changed)
@@ -259,10 +264,14 @@ void loop() {
         main_menu[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
         FastLED.show();
 
+        if (interaction) {
+            analogWrite(9, 0);
+        }
+
         if (redraw) {
             u8g2.firstPage();
             do {
-                eb1.update();
+                // eb1.update();
                 draw();
             } while ( u8g2.nextPage() );
 
@@ -272,10 +281,14 @@ void loop() {
         clear_leds();
         FastLED.show();
 
+        if (interaction) {
+            analogWrite(9, 0);
+        }
+
         if (redraw) {
             u8g2.firstPage();
             do {
-                eb1.update();
+                // eb1.update();
             } while ( u8g2.nextPage() );
 
             redraw = false;
@@ -283,8 +296,8 @@ void loop() {
     }
 
     // reset all the flags
-    bool power_changed = false;
-    bool redraw = false;
-    bool clicked = false;
-    bool interaction = false;
+    power_changed = false;
+    redraw = false;
+    clicked = false;
+    interaction = false;
 }

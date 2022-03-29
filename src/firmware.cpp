@@ -86,6 +86,42 @@ class LEDTemp: public LEDAnimation {
         bool changed;
 };
 
+class LEDDots: public LEDAnimation {
+    public:
+        LEDDots(CRGB color, u8 spacing) {
+            this->color = color;
+            this->spacing = spacing;
+            this->last = millis();
+        }
+
+        void activate() {}
+
+        void updateLEDs(CRGB leds[], size_t lednum) {
+            static u8 counter;
+
+            if (millis() >= this->last + 100) {
+                this->last = millis();
+
+                u8 offset = counter % this->spacing;
+
+                for (size_t i = 0; i < lednum; i++) {
+                    if ((i + offset) % this->spacing == 0) {
+                        leds[i] = color;
+                    } else {
+                        leds[i] = CRGB::Black;
+                    }
+                }
+
+                counter++;
+            }
+        }
+    
+    private:
+        CRGB color;
+        u8 spacing;
+        u32 last;
+} ;
+
 class LEDPride: public LEDAnimation {
     public:
         LEDPride() {
@@ -147,6 +183,10 @@ LEDPride pride = LEDPride();
 LEDTemp templow = LEDTemp(0);
 LEDTemp temphigh = LEDTemp(255);
 
+LEDDots dots2 = LEDDots(CRGB::Fuchsia, 2);
+LEDDots dots3 = LEDDots(CRGB::DodgerBlue, 3);
+LEDDots dots4 = LEDDots(CRGB::Crimson, 4);
+
 struct MenuEntry {
     const char* title;
     LEDAnimation* animation;
@@ -160,6 +200,9 @@ MenuEntry main_menu[] = {
     MenuEntry { "Schleudergang", &solid_chartreuse },
     MenuEntry { "Nachtlicht", &templow },
     MenuEntry { "Farbverlauf", &temphigh },
+    MenuEntry { "Dots 2", &dots2 },
+    MenuEntry { "Dots 3", &dots3 },
+    MenuEntry { "Dots 4", &dots4 },
 };
 
 size_t selected_preset;

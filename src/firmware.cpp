@@ -17,7 +17,7 @@ CRGB leds[NUM_LEDS];
 
 U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-EncoderButton eb1(5, 4, 3);
+EncoderButton eb1(2, 3, 4);
 
 int encoder_pos = 0;
 int encoder_delta = 0;
@@ -122,15 +122,81 @@ class LEDDots: public LEDAnimation {
         u32 last;
 } ;
 
+struct Twinkler {
+    u8 index;
+    u8 hue;
+    int age;
+};
+
+#define NUMTWINKLERS 20
+
+class LEDRandomTwinklers: public LEDAnimation {
+    public:
+        LEDRandomTwinklers() {
+            for (size_t i = 0; i < NUMTWINKLERS; i++) {
+                this->twinklers[i] = {0, 0, -1};
+            }
+            this->last = millis();
+        }
+
+        void activate() {}
+
+        void updateLEDs(CRGB leds[], size_t lednum) {
+            if (millis() < this->last + 17) {
+                return;
+            } else {
+                this->last = millis();
+            }
+
+            // new twinkler
+            if (random8() < 40) {
+                size_t i = 0;
+                bool add = false;
+                for (; i < NUMTWINKLERS; i++) {
+                    if (this->twinklers[i].age < 0) {
+                        add = true;
+                        break;
+                    }
+                }
+
+                if (add) {
+                    this->twinklers[i] = {
+                        random8(0, lednum),
+                        random8(),
+                        0
+                    };
+                }
+            }
+
+            // clear leds
+            for (size_t i = 0; i < lednum; i++) {
+                leds[i] = CRGB::Black;
+            }
+
+            // write out twinklers
+            for (size_t i = 0; i < NUMTWINKLERS; i++) {
+                auto twinkler = &this->twinklers[i];
+                if (twinkler->age >= 0 && static_cast<CRGB>(leds[twinkler->index]) == static_cast<CRGB>(CRGB::Black)) {
+                    leds[twinkler->index] = CRGB().setHSV(twinkler->hue, 255, quadwave8(twinkler->age));
+                    if (twinkler->age < 255) {
+                        twinkler->age++;
+                    } else {
+                        twinkler->age = -1;
+                    }
+                }
+            }
+        }
+
+    private:
+        Twinkler twinklers[NUMTWINKLERS];
+        u32 last;
+};
+
 class LEDPride: public LEDAnimation {
     public:
-        LEDPride() {
+        LEDPride() {}
 
-        }
-
-        void activate() {
-
-        }
+        void activate() {}
 
         void updateLEDs(CRGB leds[], size_t lednum) {
             static uint16_t sPseudotime = 0;
@@ -187,6 +253,8 @@ LEDDots dots2 = LEDDots(CRGB::Fuchsia, 2);
 LEDDots dots3 = LEDDots(CRGB::DodgerBlue, 3);
 LEDDots dots4 = LEDDots(CRGB::Crimson, 4);
 
+LEDRandomTwinklers twinklers = LEDRandomTwinklers();
+
 struct MenuEntry {
     const char* title;
     LEDAnimation* animation;
@@ -203,6 +271,7 @@ MenuEntry main_menu[] = {
     MenuEntry { "Dots 2", &dots2 },
     MenuEntry { "Dots 3", &dots3 },
     MenuEntry { "Dots 4", &dots4 },
+    MenuEntry { "Twinklers", &twinklers },
 };
 
 size_t selected_preset;
@@ -275,6 +344,8 @@ void clear_screen() {
 
 void setup() {
     selected_preset = 0;
+
+    randomSeed(analogRead(0));
 
     // Setup Serial Monitor
     Serial.begin(9600);

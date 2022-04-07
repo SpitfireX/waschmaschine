@@ -24,8 +24,7 @@ int encoder_delta = 0;
 bool power = false;
 bool power_changed = true;
 bool redraw = true;
-bool clicked = false;
-bool interaction = false;
+bool event = false;
 
 class LEDAnimation {
     public:
@@ -274,14 +273,25 @@ MenuEntry main_menu[] = {
     MenuEntry { "Twinklers", &twinklers },
 };
 
+enum InputEvent {
+    NONE,
+    INCREMENT,
+    CLICK,
+    DOUBLE_CLICK,
+    LONG_PRESS,
+};
+
+InputEvent last_input_event = InputEvent::NONE;
+
 size_t selected_preset;
 const size_t num_presets = sizeof main_menu / sizeof main_menu[0];
 
 void on_encoder(EncoderButton& eb) {
     encoder_pos = eb.position();
     encoder_delta = eb.increment();
+    last_input_event = InputEvent::INCREMENT;
     redraw = true;
-    interaction = true;
+    event = true;
     analogWrite(9, 127);
 }
 
@@ -289,12 +299,16 @@ void on_click(EncoderButton& eb) {
     if (!power) {
         power = true;
         power_changed = true;
-    } else {
-        clicked = true;
     }
+
+    last_input_event = InputEvent::CLICK;
     redraw = true;
-    interaction = true;
+    event = true;
     analogWrite(9, 127);
+}
+
+void on_double_click(EncoderButton& eb) {
+    last_input_event = InputEvent::DOUBLE_CLICK;
 }
 
 void on_long_press(EncoderButton& eb) {
@@ -302,8 +316,9 @@ void on_long_press(EncoderButton& eb) {
         power = false;
         power_changed = true;
     }
+    last_input_event = InputEvent::LONG_PRESS;
     redraw = true;
-    interaction = true;
+    event = true;
     analogWrite(9, 127);
 }
 
@@ -361,10 +376,12 @@ void setup() {
     
     eb1.setEncoderHandler(on_encoder);
     eb1.setClickHandler(on_click);
+    eb1.setDoubleClickHandler(on_double_click);
     eb1.setLongPressHandler(on_long_press);
 }
 
 void loop() {
+    // this polls the encoder/button and generates InputEvents
     eb1.update();
 
     auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
@@ -378,7 +395,7 @@ void loop() {
         main_menu[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
         FastLED.show();
 
-        if (interaction) {
+        if (event) {
             analogWrite(9, 0);
         }
 
@@ -395,7 +412,7 @@ void loop() {
         clear_leds();
         FastLED.show();
 
-        if (interaction) {
+        if (event) {
             analogWrite(9, 0);
         }
 
@@ -412,6 +429,6 @@ void loop() {
     // reset all the flags
     power_changed = false;
     redraw = false;
-    clicked = false;
-    interaction = false;
+    event = false;
+    last_input_event = InputEvent::NONE;
 }

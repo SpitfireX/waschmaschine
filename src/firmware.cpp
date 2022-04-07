@@ -9,9 +9,9 @@
 #define LED_DATA 12
 #define NUM_LEDS 79
 
-#define NUMMIRROR 29 // spiegel
-#define NUMINNER 26 // innen
-#define NUMRIM 24 // bullauge
+#define NUM_MIRROR 29 // spiegel
+#define NUM_INNER 26 // innen
+#define NUM_RIM 24 // bullauge
 
 CRGB leds[NUM_LEDS];
 
@@ -21,9 +21,6 @@ EncoderButton eb1(2, 3, 4);
 
 int encoder_pos = 0;
 int encoder_delta = 0;
-bool power = false;
-bool power_changed = true;
-bool redraw = true;
 bool event = false;
 
 class LEDAnimation {
@@ -259,7 +256,7 @@ struct MenuEntry {
     LEDAnimation* animation;
 };
 
-MenuEntry main_menu[] = {
+MenuEntry presets[] = {
     MenuEntry { "Buntwäsche", &pride },
     MenuEntry { "Einfarbig", &solid_white },
     MenuEntry { "Schnellprogramm", &solid_orange },
@@ -273,6 +270,15 @@ MenuEntry main_menu[] = {
     MenuEntry { "Twinklers", &twinklers },
 };
 
+enum MenuState {
+    OFF,
+    MAIN_MENU,
+    ANIM_CONFIG,
+    VALUE_INPUT,
+};
+
+MenuState menu_state = MenuState::OFF;
+
 enum InputEvent {
     NONE,
     INCREMENT,
@@ -284,77 +290,28 @@ enum InputEvent {
 InputEvent last_input_event = InputEvent::NONE;
 
 size_t selected_preset;
-const size_t num_presets = sizeof main_menu / sizeof main_menu[0];
+const size_t num_presets = sizeof presets / sizeof presets[0];
 
 void on_encoder(EncoderButton& eb) {
     encoder_pos = eb.position();
     encoder_delta = eb.increment();
     last_input_event = InputEvent::INCREMENT;
-    redraw = true;
     event = true;
-    analogWrite(9, 127);
 }
 
 void on_click(EncoderButton& eb) {
-    if (!power) {
-        power = true;
-        power_changed = true;
-    }
-
     last_input_event = InputEvent::CLICK;
-    redraw = true;
     event = true;
-    analogWrite(9, 127);
 }
 
 void on_double_click(EncoderButton& eb) {
     last_input_event = InputEvent::DOUBLE_CLICK;
+    event = true;
 }
 
 void on_long_press(EncoderButton& eb) {
-    if (power) {
-        power = false;
-        power_changed = true;
-    }
     last_input_event = InputEvent::LONG_PRESS;
-    redraw = true;
     event = true;
-    analogWrite(9, 127);
-}
-
-void draw() {
-    auto p = main_menu[selected_preset];
-
-    u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
-    u8g2.setFontMode(0);    // enable transparent mode, which is faster
-    u8g2.setFontRefHeightExtendedText();
-    u8g2.setDrawColor(1);
-    u8g2.setFontPosTop();
-    u8g2.setFontDirection(0);
-
-    u8g2.drawFrame(0, 0, 128, 48);
-
-    u8g2.drawUTF8(2, 2, p.title);
-
-    auto const ypos = 53;
-    auto const xstart = (128-(7*num_presets))/2;
-
-    for (size_t i = 0; i < num_presets; i++) {
-        
-        if (i == selected_preset) {
-            u8g2.drawBox(xstart + (i*7), ypos, 7, 7);
-        } else {
-            u8g2.drawBox(xstart + (i*7) + 2, ypos+2, 3, 3);
-        }
-    }
-}
-
-void clear_leds() {
-    memset(leds, 0, sizeof(leds));
-}
-
-void clear_screen() {
-    u8g2.clearDisplay();
 }
 
 void setup() {
@@ -380,55 +337,97 @@ void setup() {
     eb1.setLongPressHandler(on_long_press);
 }
 
+void draw_main_menu() {
+    auto p = presets[selected_preset];
+
+    u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
+    u8g2.setFontMode(0);    // enable transparent mode, which is faster
+    u8g2.setFontRefHeightExtendedText();
+    u8g2.setDrawColor(1);
+    u8g2.setFontPosTop();
+    u8g2.setFontDirection(0);
+
+    u8g2.drawFrame(0, 0, 128, 48);
+
+    u8g2.drawUTF8(2, 2, p.title);
+
+    auto const ypos = 53;
+    auto const xstart = (128-(7*num_presets))/2;
+
+    for (size_t i = 0; i < num_presets; i++) {
+        
+        if (i == selected_preset) {
+            u8g2.drawBox(xstart + (i*7), ypos, 7, 7);
+        } else {
+            u8g2.drawBox(xstart + (i*7) + 2, ypos+2, 3, 3);
+        }
+    }
+}
+
+inline void update_screen(void (*draw_fun)()) {
+    u8g2.firstPage();
+    do {
+        draw_fun();
+    } while ( u8g2.nextPage() );
+}
+
+inline void clear_screen() {}
+
+void clear_leds() {
+    memset(leds, 0, sizeof(leds));
+}
+
 void loop() {
     // this polls the encoder/button and generates InputEvents
     eb1.update();
+    if (event) {
+        analogWrite(9, 127);
+    }
 
-    auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
-    new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
-    if (new_preset != selected_preset || power_changed)
-        main_menu[selected_preset].animation->activate();
-    selected_preset = new_preset;
-    encoder_delta = 0;
-
-    if (power) {
-        main_menu[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
-        FastLED.show();
-
-        if (event) {
-            analogWrite(9, 0);
-        }
-
-        if (redraw) {
-            u8g2.firstPage();
-            do {
-                // eb1.update();
-                draw();
-            } while ( u8g2.nextPage() );
-
-            redraw = false;
-        }
-    } else {
+    // animate or turn off LEDs
+    if (menu_state == MenuState::OFF) {
         clear_leds();
-        FastLED.show();
+    } else {
+        presets[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
+    }
+    FastLED.show();
 
-        if (event) {
-            analogWrite(9, 0);
-        }
+    if (event) {
+        analogWrite(9, 0); // clear buzzer that clicks for every event
 
-        if (redraw) {
-            u8g2.firstPage();
-            do {
-                // eb1.update();
-            } while ( u8g2.nextPage() );
+        // handle inputs and redraws
+        switch (menu_state) {
+            case MenuState::OFF:
+                if (last_input_event == InputEvent::CLICK) {
+                    menu_state = MenuState::MAIN_MENU;
+                    presets[selected_preset].animation->activate(); // re-activate animation
+                    update_screen(draw_main_menu);
+                }
+                break;
+            
+            case MenuState::MAIN_MENU:
+                if (last_input_event == InputEvent::INCREMENT) {
+                    auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
+                    new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
+                    if (new_preset != selected_preset)
+                        presets[selected_preset].animation->activate();
+                    selected_preset = new_preset;
+                    encoder_delta = 0;
+                    update_screen(draw_main_menu);
+                } else if (last_input_event == InputEvent::LONG_PRESS) {
+                    menu_state = MenuState::OFF;
+                    update_screen(clear_screen);
+                }
+                break;
 
-            redraw = false;
+            case MenuState::ANIM_CONFIG:
+                break;
+            case MenuState::VALUE_INPUT:
+                break;
         }
     }
 
     // reset all the flags
-    power_changed = false;
-    redraw = false;
     event = false;
     last_input_event = InputEvent::NONE;
 }

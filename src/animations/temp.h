@@ -10,10 +10,10 @@ class LEDTemp: public LEDAnimation {
         LEDTemp(u8 temperature);
         void activate();
         void updateLEDs(CRGB leds[], size_t lednum);
-        size_t getNumSettings() { return num_settings; }
-        SettingValue* getSettings() { return settings; }
+        size_t getNumSettings() { return this->num_settings; }
+        SettingValue* getSettings() { return this->settings; }
 
     private:
-        u8 temp;
+        const static size_t temp = 0;
         bool changed;
 };

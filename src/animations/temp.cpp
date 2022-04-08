@@ -3,6 +3,7 @@
 LEDTemp::LEDTemp(u8 temperature) {
     this->temp = temperature;
     this->changed = true;
+    this->settings[0] = SettingValue {"Temperatur", DataType::U8, 1, temperature};
 }
 
 void LEDTemp::activate() {

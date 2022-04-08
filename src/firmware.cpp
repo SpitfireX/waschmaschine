@@ -125,6 +125,32 @@ void setup() {
     eb1.setClickHandler(on_click);
     eb1.setDoubleClickHandler(on_double_click);
     eb1.setLongPressHandler(on_long_press);
+
+    for (size_t i = 0; i < num_presets; i++) {
+        if (presets[i].animation->getNumSettings() > 0) {
+            Serial.print("Preset ");
+            Serial.print(i);
+            Serial.print(" has ");
+            Serial.print(presets[i].animation->getNumSettings());
+            Serial.println(" settings:");
+
+            for (size_t j = 0; j < presets[i].animation->getNumSettings(); j++) {
+                auto setting = presets[i].animation->getSettings()[j];
+                Serial.print("\t");
+                Serial.print(setting.name);
+                Serial.print(", ");
+                Serial.print(setting.data_type);
+                Serial.print(", ");
+                Serial.print(setting.stepsize);
+                Serial.print(", ");
+                Serial.println(setting.value);
+            }
+        } else {
+            Serial.print("Preset ");
+            Serial.print(i);
+            Serial.println(" has no settings.");
+        }
+    }
 }
 
 void draw_main_menu() {

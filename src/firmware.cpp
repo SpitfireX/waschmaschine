@@ -19,7 +19,7 @@ CRGB leds[NUM_LEDS];
 
 U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-EncoderButton eb1(2, 3, 4);
+EncoderButton eb1(3, 2, 4);
 
 int encoder_pos = 0;
 int encoder_delta = 0;
@@ -63,7 +63,7 @@ MenuEntry presets[] = {
 enum MenuState {
     OFF,
     MAIN_MENU,
-    ANIM_CONFIG,
+    PRESET_CONFIG,
     VALUE_INPUT,
 };
 
@@ -80,6 +80,7 @@ enum InputEvent {
 InputEvent last_input_event = InputEvent::NONE;
 
 size_t selected_preset;
+size_t list_cursor = 0;
 const size_t num_presets = sizeof presets / sizeof presets[0];
 
 void on_encoder(EncoderButton& eb) {
@@ -180,6 +181,72 @@ void draw_main_menu() {
     }
 }
 
+void draw_preset_config() {
+    auto n = presets[selected_preset].animation->getNumSettings()+1;
+    auto pages = (n % 3 == 0) ? n/3 : (n/3)+1;
+
+    u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
+    u8g2.setFontMode(0);    // enable transparent mode, which is faster
+    u8g2.setFontRefHeightExtendedText();
+    u8g2.setFontPosTop();
+    u8g2.setFontDirection(0);
+
+    size_t frame_w;
+    auto current_page = list_cursor/3;
+
+    if (pages > 1) {
+        frame_w = 122;
+    } else {
+        frame_w = 128;
+    }
+
+    Serial.println(list_cursor);
+    Serial.println(pages);
+    Serial.println(current_page);
+
+    for (size_t i = current_page*3; i < (current_page*3)+3; i++) {
+        auto lli = i%3; // local on screen list index, i.e. 0-2
+        
+        if (i == list_cursor) {
+            u8g2.setDrawColor(1);
+        } else {
+            u8g2.setDrawColor(0);
+        }
+
+        u8g2.drawBox(2, 2+(lli*20), frame_w-4, 20);
+
+        if (i == list_cursor) {
+            u8g2.setDrawColor(0);
+        } else {
+            u8g2.setDrawColor(1);
+        }
+
+        if (i == 0) {
+            u8g2.drawUTF8(2, 3, "Zurück");
+        } else {
+            if (i < n) {
+                auto v = presets[selected_preset].animation->getSettings()[i-1];
+                u8g2.drawUTF8(2, 3 + (lli*20), v.name);
+            } else {
+                break;
+            }
+        }
+    }
+
+    u8g2.setDrawColor(1);
+    u8g2.drawFrame(0, 0, frame_w, 64);
+    if (pages > 1) {
+        auto barheight = 64/pages;
+
+        u8g2.drawVLine(126, 0, 64);
+        u8g2.drawBox(125, current_page*barheight, 3, barheight);
+    }
+}
+
+void draw_value_input() {
+    u8g2.drawUTF8(2, 2, "Value Input");
+}
+
 inline void update_screen(void (*draw_fun)()) {
     u8g2.firstPage();
     do {
@@ -233,12 +300,42 @@ void loop() {
                 } else if (last_input_event == InputEvent::LONG_PRESS) {
                     menu_state = MenuState::OFF;
                     update_screen(clear_screen);
+                } else if (last_input_event == InputEvent::CLICK) {
+                    if (presets[selected_preset].animation->getNumSettings() > 0) {
+                        menu_state = MenuState::PRESET_CONFIG;
+                        list_cursor = 0;
+                        update_screen(draw_preset_config);
+                    }
                 }
                 break;
 
-            case MenuState::ANIM_CONFIG:
+            case MenuState::PRESET_CONFIG:
+                if (last_input_event == InputEvent::CLICK) {
+                    if (list_cursor == 0) {
+                        menu_state = MenuState::MAIN_MENU;
+                        update_screen(draw_main_menu);
+                    } else {
+                        menu_state = MenuState::VALUE_INPUT;
+                        update_screen(draw_value_input);
+                    }
+                } else if (last_input_event == InputEvent::INCREMENT) {
+                    int new_cursor = list_cursor + encoder_delta;
+                    if (new_cursor < 0) {
+                        list_cursor = 0;
+                    } else if (new_cursor > presets[selected_preset].animation->getNumSettings()) {
+                        list_cursor = presets[selected_preset].animation->getNumSettings();
+                    } else {
+                        list_cursor = (size_t) new_cursor;
+                    }
+                    update_screen(draw_preset_config);
+                }
                 break;
+            
             case MenuState::VALUE_INPUT:
+                if (last_input_event == InputEvent::CLICK) {
+                    menu_state = MenuState::PRESET_CONFIG;
+                    update_screen(draw_preset_config);
+                }
                 break;
         }
     }

@@ -243,8 +243,92 @@ void draw_preset_config() {
     }
 }
 
+inline void draw_bar(size_t bar_width) {
+    // bar
+    u8g2.drawBox(0, 29, bar_width, 7);
+
+    // decorative frames
+    u8g2.setDrawColor(0);
+    u8g2.drawFrame(1, 28, 125, 9);
+    u8g2.setDrawColor(1);
+    u8g2.drawFrame(0, 27, 127, 11);
+
+    // position for decorative cursor, cannot < 0 or > 127
+    // cursor is 8x17 px
+    int cpos = ((int) bar_width) - 4;
+    size_t ncpos;
+    if (cpos < 0) {
+        ncpos = 0;
+    } else if (cpos > (127 - 8)) {
+        ncpos = (127 - 8);
+    } else {
+        ncpos = cpos;
+    }
+
+    u8g2.setDrawColor(0);
+    u8g2.drawRBox(ncpos, 24, 8, 17, 2);
+    u8g2.setDrawColor(1);
+    u8g2.drawRFrame(ncpos, 24, 8, 17, 2);
+}
+
 void draw_value_input() {
-    u8g2.drawUTF8(2, 2, "Value Input");
+    u8g2.setFont(u8g2_font_logisoso16_tf);    // set the target font
+    u8g2.setFontMode(0);    // enable transparent mode, which is faster
+    u8g2.setFontRefHeightExtendedText();
+    u8g2.setFontPosTop();
+    u8g2.setFontDirection(0);
+    u8g2.setDrawColor(1);
+
+    auto v = presets[selected_preset].animation->getSettings()[list_cursor-1]; // list_cursor = 0 is virtual "back" entry
+    const char* vstr; 
+
+    auto tpos = (128 - u8g2.getStrWidth(v.name))/2;
+    u8g2.drawUTF8(tpos, 0, v.name);
+
+    switch (v.data_type) {
+        case DataType::U8: {
+            vstr = u8x8_utoa(v.value);
+
+            float frac = ((unsigned char) v.value)/255.0F;
+            size_t bar_width = 127 * frac;
+
+            draw_bar(bar_width);
+
+            break;
+        }
+        
+        case DataType::U16: {
+            vstr = u8x8_utoa(v.value);
+
+            float frac = v.value/65535.0F;
+            size_t bar_width = 127 * frac;
+
+            draw_bar(bar_width);
+
+            break;
+        }
+        
+        case DataType::BOOL:
+            if (v.value) {
+                vstr = "An";
+
+                u8g2.setDrawColor(1);
+                u8g2.drawRBox(46, 23, 40, 19, 9);
+                u8g2.setDrawColor(0);
+                u8g2.drawDisc(68+8, 24+8, 7);
+            } else {
+                vstr = "Aus";
+                
+                u8g2.setDrawColor(1);
+                u8g2.drawRFrame(46, 23, 40, 19, 9);
+                u8g2.drawDisc(48+8, 24+8, 7);
+            }
+            break;
+    }
+
+    u8g2.setDrawColor(1);
+    auto vpos = (128 - u8g2.getStrWidth(vstr))/2;
+    u8g2.drawStr(vpos, 47, vstr);
 }
 
 inline void update_screen(void (*draw_fun)()) {
@@ -301,7 +385,11 @@ void loop() {
                     menu_state = MenuState::OFF;
                     update_screen(clear_screen);
                 } else if (last_input_event == InputEvent::CLICK) {
-                    if (presets[selected_preset].animation->getNumSettings() > 0) {
+                    if (presets[selected_preset].animation->getNumSettings() == 1) {
+                        menu_state = MenuState::VALUE_INPUT;
+                        list_cursor = 1;
+                        update_screen(draw_value_input);
+                    } else if (presets[selected_preset].animation->getNumSettings() > 1) {
                         menu_state = MenuState::PRESET_CONFIG;
                         list_cursor = 0;
                         update_screen(draw_preset_config);
@@ -333,8 +421,54 @@ void loop() {
             
             case MenuState::VALUE_INPUT:
                 if (last_input_event == InputEvent::CLICK) {
-                    menu_state = MenuState::PRESET_CONFIG;
-                    update_screen(draw_preset_config);
+                    if (presets[selected_preset].animation->getNumSettings() == 1) {
+                        menu_state = MenuState::MAIN_MENU;
+                        update_screen(draw_main_menu);
+                    } else {
+                        menu_state = MenuState::PRESET_CONFIG;
+                        update_screen(draw_preset_config);
+                    }
+                } else if (last_input_event == InputEvent::INCREMENT) {
+                    SettingValue* v = &presets[selected_preset].animation->getSettings()[list_cursor-1]; // list_cursor = 0 is virtual "back" entry
+
+                    switch (v->data_type) {
+                        case DataType::U8: {
+                            int rdelta = encoder_delta*v->stepsize;
+                            int newval = ((unsigned char) v->value) + rdelta;
+                            if (newval < 0) {
+                                v->value = 0;
+                            } else if (newval > 255) {
+                                v->value = 255;
+                            } else {
+                                v->value = (unsigned char) newval;
+                            }
+                            break;
+                        }
+
+                        case DataType::U16: {
+                            int rdelta = encoder_delta*v->stepsize;
+                            long newval = ((unsigned long) v->value) + rdelta;
+                            if (newval < 0) {
+                                v->value = 0;
+                            } else if (newval > 65535) {
+                                v->value = 65535;
+                            } else {
+                                v->value = (unsigned short) newval;
+                            }
+                            break;
+                        }
+
+                        case DataType::BOOL:
+                            if (encoder_delta > 0) {
+                                v->value = true;
+                            } else {
+                                v->value = false;
+                            }
+                            break;
+                    }
+
+                    presets[selected_preset].animation->activate();
+                    update_screen(draw_value_input);
                 }
                 break;
         }

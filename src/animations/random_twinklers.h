@@ -14,8 +14,8 @@ struct Twinkler {
 class LEDRandomTwinklers: public LEDAnimation {
     public:
         LEDRandomTwinklers();
-        void activate() {}
-        void updateLEDs(CRGB leds[], size_t lednum);
+        void update() {}
+        void show(CRGB leds[], size_t lednum);
 
     private:
         Twinkler twinklers[NUMTWINKLERS];

@@ -5,11 +5,11 @@ LEDSolid::LEDSolid(CRGB color) {
     this->changed = true;
 }
 
-void LEDSolid::activate() {
+void LEDSolid::update() {
     this->changed = true;
 }
 
-void LEDSolid::updateLEDs(CRGB leds[], size_t lednum) {
+void LEDSolid::show(CRGB leds[], size_t lednum) {
     if (this->changed) {
         for (size_t i = 0; i < lednum; i++) {
             leds[i] = this->color;

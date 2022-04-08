@@ -8,8 +8,8 @@ class LEDTemp: public LEDAnimation {
         SettingValue settings[num_settings];
 
         LEDTemp(u8 temperature);
-        void activate();
-        void updateLEDs(CRGB leds[], size_t lednum);
+        void update();
+        void show(CRGB leds[], size_t lednum);
         size_t getNumSettings() { return this->num_settings; }
         SettingValue* getSettings() { return this->settings; }
 

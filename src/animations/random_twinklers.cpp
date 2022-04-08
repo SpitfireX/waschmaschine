@@ -7,7 +7,7 @@ LEDRandomTwinklers::LEDRandomTwinklers() {
     this->last = millis();
 }
 
-void LEDRandomTwinklers::updateLEDs(CRGB leds[], size_t lednum) {
+void LEDRandomTwinklers::show(CRGB leds[], size_t lednum) {
     if (millis() < this->last + 17) {
         return;
     } else {

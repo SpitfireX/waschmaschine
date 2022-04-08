@@ -1,6 +1,6 @@
 #include "pride.h"
 
-void LEDPride::updateLEDs(CRGB leds[], size_t lednum) {
+void LEDPride::show(CRGB leds[], size_t lednum) {
     static uint16_t sPseudotime = 0;
     static uint16_t sLastMillis = 0;
     static uint16_t sHue16 = 0;

@@ -5,11 +5,11 @@ LEDTemp::LEDTemp(u8 temperature) {
     this->settings[0] = SettingValue {"Temperatur", DataType::U8, 1, temperature};
 }
 
-void LEDTemp::activate() {
+void LEDTemp::update() {
     this->changed = true;
 }
 
-void LEDTemp::updateLEDs(CRGB leds[], size_t lednum) {
+void LEDTemp::show(CRGB leds[], size_t lednum) {
     if (this->changed) {
         unsigned char temp = this->settings[this->temp].value;
 

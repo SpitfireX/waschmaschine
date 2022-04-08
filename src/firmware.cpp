@@ -355,7 +355,7 @@ void loop() {
     if (menu_state == MenuState::OFF) {
         clear_leds();
     } else {
-        presets[selected_preset].animation->updateLEDs(leds, NUM_LEDS);
+        presets[selected_preset].animation->show(leds, NUM_LEDS);
     }
     FastLED.show();
 
@@ -367,7 +367,7 @@ void loop() {
             case MenuState::OFF:
                 if (last_input_event == InputEvent::CLICK) {
                     menu_state = MenuState::MAIN_MENU;
-                    presets[selected_preset].animation->activate(); // re-activate animation
+                    presets[selected_preset].animation->update(); // re-activate animation
                     update_screen(draw_main_menu);
                 }
                 break;
@@ -377,7 +377,7 @@ void loop() {
                     auto new_preset = ((int) selected_preset + encoder_delta) % (int) num_presets;
                     new_preset = (new_preset >= 0) ? new_preset : num_presets-1;
                     if (new_preset != selected_preset)
-                        presets[selected_preset].animation->activate();
+                        presets[selected_preset].animation->update();
                     selected_preset = new_preset;
                     encoder_delta = 0;
                     update_screen(draw_main_menu);
@@ -467,7 +467,7 @@ void loop() {
                             break;
                     }
 
-                    presets[selected_preset].animation->activate();
+                    presets[selected_preset].animation->update();
                     update_screen(draw_value_input);
                 }
                 break;

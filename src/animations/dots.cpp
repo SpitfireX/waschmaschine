@@ -6,7 +6,7 @@ LEDDots::LEDDots(CRGB color, u8 spacing) {
     this->last = millis();
 }
 
-void LEDDots::updateLEDs(CRGB leds[], size_t lednum) {
+void LEDDots::show(CRGB leds[], size_t lednum) {
     static u8 counter;
 
     if (millis() >= this->last + 100) {

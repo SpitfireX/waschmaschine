@@ -5,6 +5,6 @@
 class LEDPride: public LEDAnimation {
     public:
         LEDPride() {}
-        void activate() {}
-        void updateLEDs(CRGB leds[], size_t lednum);
+        void update() {}
+        void show(CRGB leds[], size_t lednum);
 };

@@ -5,8 +5,8 @@
 class LEDSolid: public LEDAnimation {
     public:
         LEDSolid(CRGB color);
-        void updateLEDs(CRGB leds[], size_t lednum);
-        void activate();
+        void show(CRGB leds[], size_t lednum);
+        void update();
 
     private:
         CRGB color;

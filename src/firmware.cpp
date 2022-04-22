@@ -25,10 +25,7 @@ int encoder_pos = 0;
 int encoder_delta = 0;
 bool event = false;
 
-LEDSolid solid_white = LEDSolid(CRGB::White);
-LEDSolid solid_orange = LEDSolid(CRGB::Orange);
-LEDSolid solid_aqua = LEDSolid(CRGB::Aquamarine);
-LEDSolid solid_chartreuse = LEDSolid(CRGB::Chartreuse);
+LEDSolid solid = LEDSolid(69, 255);
 
 LEDPride pride = LEDPride();
 
@@ -48,10 +45,7 @@ struct MenuEntry {
 
 MenuEntry presets[] = {
     MenuEntry { "Buntwäsche", &pride },
-    MenuEntry { "Einfarbig", &solid_white },
-    MenuEntry { "Schnellprogramm", &solid_orange },
-    MenuEntry { "Auswaschen", &solid_aqua },
-    MenuEntry { "Schleudergang", &solid_chartreuse },
+    MenuEntry { "Einfarbig", &solid },
     MenuEntry { "Nachtlicht", &templow },
     MenuEntry { "Farbverlauf", &temphigh },
     MenuEntry { "Dots 2", &dots2 },
